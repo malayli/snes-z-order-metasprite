@@ -5,7 +5,6 @@
 #include "common/oam.h"
 #include "common/palette.h"
 #include "common/spriteEngine.h"
-#include "helper.h"
 
 // ROM
 
@@ -177,7 +176,12 @@ u16 playerIndex;
 u16 bg3TileMap[1024];
 u16 bgTileIndex;
 u16 metaSpriteTemp[MS_ITEM_SIZE];
+u8 updated;
+u16 xTmp, yTmp;
+u8 enemyMoveState;
+u16 typeTmp;
 s16 i, j;
+u16 *ptr, *ptr2;
 u16 metaSprites[] = {
     5, 16, 140, SPR_PLAYER_IDLE_INDEX, 0,
     1, 92, 70, SPR_ENEMY_IDLE_INDEX, 0,
@@ -186,11 +190,9 @@ u16 metaSprites[] = {
     0xFFFF
 };
 
-u8 updated;
-u16 xTmp, yTmp;
-u8 enemyMoveState;
-
-void insertionSort() {
+/*!\brief Sort an array of metasprites according to the Y position.
+*/
+void sortMetaSprites() {
     i = MS_ITEM_SIZE;
 
     while (metaSprites[i] != 0xFFFF) {
@@ -245,9 +247,9 @@ void initBg3Black() {
     dmaCopyVram((u8 *)emptyPicture, 0x5000, 32);
 }
 
-u16 *ptr, *ptr2;
-
-void oamDrawMetaSprites() {
+/*!\brief Set an array of metasprites in the OAM.
+*/
+void oamSetMetaSprites() {
     oamIndex = 0;
     ptr = metaSprites;
 
@@ -257,17 +259,13 @@ void oamDrawMetaSprites() {
         ptr2 = objSprites + *(ptr + MS_SPRITES_INDEX);
 
         while((*ptr2) != 0xFFFF) {
-            // Draw only if the sprite is different
-            // Warning: This condition must be improved as it does not cover all conditions.
-            if (oamMemory[oamIndex + 2] != *(ptr2 + SPR_GFX_INDEX)) {
-                oamSetAttr(oamIndex,
+            oamSetAttr(oamIndex,
                 xTmp + *(ptr2 + SPR_X_INDEX),
                 yTmp + *(ptr2 + SPR_Y_INDEX),
                 *(ptr2 + SPR_GFX_INDEX),
                 *(ptr2 + SPR_ATTR_INDEX));
 
-                oamSetEx(oamIndex, *(ptr2 + SPR_SIZE_INDEX), OBJ_SHOW);
-            }
+            oamSetEx(oamIndex, *(ptr2 + SPR_SIZE_INDEX), OBJ_SHOW);
             
             ptr2 += SPR_ITEM_SIZE;
             oamIndex += 4;
@@ -277,6 +275,8 @@ void oamDrawMetaSprites() {
     }
 }
 
+/*!\brief Set metasprites {x, y} position in the OAM.
+*/
 void oamSetMetaSpritesXY() {
     oamIndex = 0;
     ptr = metaSprites;
@@ -311,8 +311,8 @@ void oamSetMetaSpritesXY() {
     }
 }
 
-u16 typeTmp;
-
+/*!\brief Find and set the player index in the array of metasprites.
+*/
 void findPlayerIndex() {
     i = 0;
     typeTmp = metaSprites[i];
@@ -329,6 +329,8 @@ void findPlayerIndex() {
     }
 }
 
+/*!\brief Move enemies metasprites.
+*/
 void moveEnemies() {
     metaSpriteIndex = 0;
 
@@ -403,9 +405,9 @@ int main(void) {
 
     WaitForVBlank();
 
-    insertionSort();
+    sortMetaSprites();
     findPlayerIndex();
-    oamDrawMetaSprites();
+    oamSetMetaSprites();
 
     setFadeEffect(FADE_IN);
     WaitForVBlank();
@@ -437,12 +439,12 @@ int main(void) {
 
         moveEnemies();
 
-        insertionSort();
+        sortMetaSprites();
 
         findPlayerIndex();
 
         if (updated == 1) {
-            oamDrawMetaSprites();
+            oamSetMetaSprites();
             updated = 0;
 
         } else {
